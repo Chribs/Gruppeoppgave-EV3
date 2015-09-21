@@ -1,0 +1,146 @@
+import lejos.hardware.motor.*;
+import lejos.hardware.lcd.*;
+import lejos.hardware.sensor.EV3TouchSensor;
+import lejos.hardware.sensor.EV3ColorSensor;
+import lejos.hardware.sensor.EV3UltrasonicSensor;
+import lejos.hardware.sensor.NXTSoundSensor;
+import lejos.hardware.port.Port;
+import lejos.hardware.Brick;
+import lejos.hardware.BrickFinder;
+import lejos.hardware.ev3.EV3;
+import lejos.hardware.Keys;
+import lejos.hardware.sensor.SensorModes;
+import lejos.robotics.SampleProvider;
+import lejos.hardware.sensor.*;
+import lejos.robotics.navigation.*;
+import lejos.robotics.navigation.DifferentialPilot.*;
+
+public class RallyPID {
+	public static void main(String[] args) throws Exception{
+		try {
+			Brick brick = BrickFinder.getDefault(); // finner roboten
+			TextLCD lcdScreen = brick.getTextLCD();
+
+			Port s1 = brick.getPort("S1");
+ 			Port s2 = brick.getPort("S2");
+ 			Port s3 = brick.getPort("S3");
+ 			Port s4 = brick.getPort("S4");
+
+			EV3ColorSensor lightSensorV = new EV3ColorSensor(s1); // lyssensor EV3 høyre
+			SampleProvider lightReaderV = lightSensorV.getRGBMode();  // setter i rett modus
+			float[] lightSampleV = new float[lightReaderV.sampleSize()];  // målinger
+
+			NXTLightSensor lightSensorH = new NXTLightSensor(s4); // lyssensor NXT venstre
+			SampleProvider lightReaderH = lightSensorH.getRedMode();  // setter i rett modus
+			float[] lightSampleH = new float[lightReaderH.sampleSize()];  // målinger
+
+			DifferentialPilot pilot = new DifferentialPilot(2.1f, 3.6f, Motor.D, Motor.A, true);
+
+			private void calibrate() {
+
+			                // clear the screen
+			                brick.getTextLCD().clear();
+
+			                brick.getTextLCD().drawString("Calibrate:", 0, 0);
+			                brick.getTextLCD().drawString("Place the robot", 0, 1);
+			                brick.getTextLCD().drawString("on or near the", 0, 2);
+			                brick.getTextLCD().drawString("line start.", 0, 3);
+			                brick.getTextLCD().drawString("Then press the", 0, 5);
+			                brick.getTextLCD().drawString("Enter key", 0, 6);
+
+			                brick.getKey("Enter").waitForPressAndRelease();
+
+			                // put the sensor in "red" mode to shine a light and
+			                // read back a brightness value
+			                //
+			                // The two numbers are the min and max scaled values
+			                // you want to receive (you can make them whatever you want
+			                // but the default is to return numbers between 0 and 1).
+			                //
+			                // The boolean determines if the filter "clamps" values out
+			                // of range to the minimum and maximum provided.  If set to
+			                // true, you will always get values in the range you specify.
+			                // If false, a poor calibration may result in readings coming
+			                // back outside of range.
+			                NormalizationFilter nf = new NormalizationFilter
+			                                (colorSensor.getRedMode(), 0, 1, true);
+
+			                calibrated = nf;
+
+			                // signal the filter to start the calibration process
+			                nf.startCalibration();
+
+			                findBrightestPoint();
+
+			                // end the collection of calibration data
+			                nf.stopCalibration();
+
+			                brick.getTextLCD().clear();
+        }
+        private void findBrightestPoint() {
+			lightReaderV.fetchSample(lightSampleV, 0);
+
+			}
+
+
+			int TP = 6; // kraft når vi kjører rett frem
+
+			/*TESTING:
+			KP = 7, KI = 0, KD = 0 =>
+			KP = 7, KI = 1, KD = 0 =>
+			KP = 7, KI = 1, KD = 10 =>
+
+
+			*/
+			int KP = 7; // P-konstant 20 lyserror *10 = maks
+			int KI = 1; // I-konstant
+			int KD = 10; // D-konstant
+
+			int integralV = 0; // legger til feil som har skjedd her
+			//int integralH = 0; // ...
+			int lastErrorV = 0; // lagrer siste feil her
+			//int lastErrorH = 0; // ...
+			int derivV = 0; // sjekker hvor mye feilen har forandret seg
+			//int derivH = 0; // ...
+
+			//int offsetH = lightDefH; // lys vi vil ha
+			int offsetV = lightDefV; // lys vi vil ha
+			int errorV = 0; // feil på venstre sensor
+			//int errorH = 0; // ... høyre
+			int turn = 0; // her legger vi inn hvor mye vi vil svinge
+
+			boolean smthin = true;
+			pilot.setTravelSpeed(TP);
+			pilot.forward();
+
+			while (smthin) {
+				//lightReaderV.fetchSample(lightSampleV, 0); // henter målinger
+				//lightReaderH.fetchSample(lightSampleH, 0); // ...
+				//errorV = offsetV - (int)(lightSampleV[0]*100) - 5; // 0 - 10 => -5, 5
+				//errorH = offsetH - (int)(lightSampleH[0]*100) - 7; // 0 - 15 => -7, 8
+
+				integralV += errorV; // legger til feil i integral
+				lastErrorV = errorV; // lagrer til neste gjennomløp
+				derivV = errorV - lastErrorV; // derivatet sjekker hvor mye feilen har forandret seg
+				integralH += errorH; // ...
+				lastErrorH = errorH; // ...
+				derivH = errorH - lastErrorH; // ...
+
+				/* FOR TESTING : */
+				lcdScreen.drawString("Error: " + errorV + " : " + errorH, 1, 1);
+				lcdScreen.drawString("Int: " + integralV + " : " + integralH, 2, 1);
+				lcdScreen.drawString("Deriv: " + derivV + " : " + derivH, 3, 1);
+
+				if (errorH > 0) { // gir høyre sensor prioritet
+					turn = (KP*errorH) + (KI*integralH) + (KD*derivH); // bruker feil, tidligere feil og derivatfeilen til å beregne kurs
+					pilot.steer(-turn); // svinger til høyre forhåpentligvis
+				} else if (errorV > 0){
+					turn = (KP*errorV) + (KI*integralV) + (KD*derivH);
+					pilot.steer(turn);
+				}
+			}
+		}catch(Exception e) {
+			System.out.println("Error: " + e);
+		}
+	}
+}
