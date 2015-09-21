@@ -1,0 +1,65 @@
+import lejos.hardware.motor.*;
+import lejos.hardware.lcd.*;
+import lejos.hardware.sensor.EV3TouchSensor;
+import lejos.hardware.sensor.EV3ColorSensor;
+import lejos.hardware.sensor.EV3UltrasonicSensor;
+import lejos.hardware.sensor.NXTSoundSensor;
+import lejos.hardware.port.Port;
+import lejos.hardware.Brick;
+import lejos.hardware.BrickFinder;
+import lejos.hardware.ev3.EV3;
+import lejos.hardware.Keys;
+import lejos.hardware.sensor.SensorModes;
+import lejos.robotics.SampleProvider;
+import lejos.hardware.sensor.*;
+import lejos.robotics.navigation.*;
+import lejos.robotics.navigation.DifferentialPilot.*;
+
+public class RallyPID {
+	public static void main(String[] args) throws Exception{
+		try{
+			double white = 0.0;
+			double black = 0.0;
+			double midpoint;
+			double sensor;
+			double kp;
+			double ki;
+			double kd;
+			double lastError = 0;
+			double speed = 100;
+
+			NXTLightSensor lightSensor = new NXTLightSensor(s4); // lyssensor NXT venstre
+			SampleProvider lightReader = lightSensorH.getRedMode();  // setter i rett modus
+			float[] lightSample = new float[lightReader.sampleSize()];  // målinger
+
+		 public calibrate(){
+				public static int waitForAnyPress(2.sensor.EV3TouchSensor){
+					white = lightReader.fetchSample(lightSample, 0);
+				}
+				waitForAnyPress(2.sensor.EV3TouchSensor){
+					black = lightReader.fetchSample(lightSample, 0);
+		}
+			midpoint = ((white - black)/2 + black)
+			kp = 1;
+			ki =1;
+			kd = 1;
+			boolean smthin = true;
+
+			while (smthin){
+				sensor = lightReader.fetchSample(lightSample, 0);
+				error = midpoint - sensor;
+				integral += error;
+				derivative = error - lastError;
+				correction = kp * error + ki * integral + kd * derivative;
+
+				motor.A.setSpeed(speed * correction);
+				motor.D.setSpeed(speed *(-correction));
+
+				lastError = error;
+			}
+			catch(Exception e) {
+						System.out.println("Error: " + e);
+		}
+	}
+	}
+}
